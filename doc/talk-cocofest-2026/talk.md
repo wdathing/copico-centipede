@@ -28,6 +28,27 @@ experimentally to enhance Cocos for the last couple of years.
 | 2025 | Bonobo   | Coco Cart with Pi Pico 1; Spoon-Feeding boot & network device for NekotOS gaming OS |
 | 2026 | Centipede | Coco Cart with RP2350B; can do anything & everything? |
 
+## What can we fake
+
+Today:
+
+* Cartridge ROM
+* Extra RAM (64K for 16K machine) (but with VDG RAM Aliasing problem)
+* Floppy Drives
+* Crisp, clean VDG screen (to atone for the VDG RAM Aliasing problem)
+
+Future:
+
+* 128K, 256K, 512K? and MMU as in a Coco3
+* CocoSDC
+* Orchestra-90 (two 8-bit analog outputs)
+* VGA output
+* Ethernet / Internet access
+* fast Fujinet (ESP32-DevKit hat)
+* fast Drivewire
+* various I2C or SPI or UART devices (sensors, controls, displays)
+* NekotOS (realtime gaming OS)
+
 ## C++ Framework
 
 ```
@@ -40,6 +61,56 @@ IOReader Readers[256];
 IOWriter Writers[256];
 
 byte ram[128 * 1024];
+```
+
+## C++ Curiously-Recurring Template Pattern
+
+```C
+template <class T>
+class DontLog { public: void Log(const char* s) {} };
+
+template <class T>
+class DoLog { public: void Log(const char* s) {
+    printf("LOG: <%s>\n", s);
+} };
+
+//////////////////
+
+template <class T>
+class BigRam { public:
+    uint LogicalToPhysical(uint addr) { ... }
+    byte Peek(uint addr) { ... }
+    void Poke(uint addr, byte x) { ... }
+};
+
+template <class T>
+class SmallRam { public:
+    uint LogicalToPhysical(uint addr) { ... }
+    byte Peek(uint addr) { ... }
+    void Poke(uint addr, byte x) { ... }
+};
+
+/////////////////
+
+template <class T>
+class Common { public:
+    void Run() { Log("running"); ... }
+};
+
+class FastEngine:
+    public Common<FastEngine>,
+    public DontLog<FastEngine>,
+    public SmallRam<FastEngine> { };
+
+class SlowEngine:
+    public Common<FastEngine>,
+    public DoLog<FastEngine>,
+    public BigRam<FastEngine> { };
+
+int main() {
+    if (fast) (new FastEngine)->Run();
+    else (new SlowEngine)->Run();
+}
 ```
 
 ## If CTS and SCS are NOT active:
@@ -135,9 +206,6 @@ byte ram[128 * 1024];
           gpio_set_dir_out_masked(0xFF);
           gpio_put_masked(0xFF, dbus);
           STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 's');
-#if DBUS_HOLD_CYCLES
-          busy_wait_at_least_cycles(DBUS_HOLD_CYCLES);
-#endif
           gpio_set_dir_in_masked(0xFF);
 
         } else {  // Special CPU WRITING -- we RX
