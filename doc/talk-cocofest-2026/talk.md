@@ -175,7 +175,7 @@ int main() {
         }  // end if (writing) else
 ```
 
-## If CTS or SCS are active:
+## If either CTS or SCS is active:
 
 ```C
         if (LIKELY(reading)) {  // Special CPU READING -- we TX
