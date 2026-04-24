@@ -96,7 +96,7 @@ class SmallRam { public:
 
 template <class T>
 class Common { public:
-    void Run() { Log("running"); ... }
+    void Run() { T::Log("running"); ... }
 };
 
 class FastEngine:
