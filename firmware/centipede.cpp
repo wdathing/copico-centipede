@@ -1,8 +1,8 @@
 #define MHz 250
 
-#define CENTIPEDE_REV 3226 // 32z
-// #define CENTIPEDE_REV 3204 // 32d
+//#define CENTIPEDE_REV 3204 // 32d
 //#define CENTIPEDE_REV 3205 // 32e
+#define CENTIPEDE_REV 3226 // 32z
 
 #define DBUS_HOLD_CYCLES 0
 
@@ -63,8 +63,8 @@ extern int stdio_usb_in_chars(char* buf, int length);
 
 #elif CENTIPEDE_REV == 3226 // 32z
 
-#define G_CTS 8   // bodged
-#define G_SCS 9   // bodged
+#define G_CTS 8
+#define G_SCS 9
 
 #define G_LED 25
 #define G_SND 26
