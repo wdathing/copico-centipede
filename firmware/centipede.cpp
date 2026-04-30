@@ -1,7 +1,7 @@
 #define MHz 250
 
-//#define CENTIPEDE_REV 3204 // 32d
-//#define CENTIPEDE_REV 3205 // 32e
+// #define CENTIPEDE_REV 3204 // 32d
+// #define CENTIPEDE_REV 3205 // 32e
 #define CENTIPEDE_REV 3226 // 32z
 
 #define DBUS_HOLD_CYCLES 0
@@ -22,14 +22,15 @@
 #include <pico/time.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 #include <arm_acle.h>
 #include <cmsis_gcc.h>
 #include <cstring>
 #include <setjmp.h>
 #include <stdio.h>
-extern int stdio_usb_in_chars(char* buf, int length);
+  extern int stdio_usb_in_chars(char *buf, int length);
 #ifdef __cplusplus
 }
 #endif
@@ -50,8 +51,8 @@ extern int stdio_usb_in_chars(char* buf, int length);
 
 #elif CENTIPEDE_REV == 3204 // 32d
 
-#define G_CTS 18   // bodged
-#define G_SCS 19   // bodged
+#define G_CTS 18 // bodged
+#define G_SCS 19 // bodged
 
 #define G_LED 25
 #define G_SND 26
@@ -74,7 +75,7 @@ extern int stdio_usb_in_chars(char* buf, int length);
 #define G_NMI 30
 #define G_RESET 31
 
-#else  // Original Centipede experiment (all wire-wrapped)
+#else // Original Centipede experiment (all wire-wrapped)
 
 #define G_LED 25
 #define G_NMI 26
@@ -99,21 +100,24 @@ using byte = unsigned char;
 
 CrossCoreFIFO<uint, 1024> ccfifo;
 
-FORCE_INLINE uint ccfifo_pop_blocking() {
-    uint z = 0;
-    while (1) {
-        bool ok = ccfifo.pop(z);
-        if (ok) return z;
-    }
+FORCE_INLINE uint ccfifo_pop_blocking()
+{
+  uint z = 0;
+  while (1)
+  {
+    bool ok = ccfifo.pop(z);
+    if (ok)
+      return z;
+  }
 }
 
 // #define PUSH force_inline_multicore_fifo_push_blocking
 // #define POP  multicore_fifo_pop_blocking
 #define PUSH ccfifo.push
-#define POP  ccfifo_pop_blocking
+#define POP ccfifo_pop_blocking
 
 #define INCLUDING
-#include "disk11_rom.c"  // byte disk11_rom[8192]...
+#include "disk11_rom.c" // byte disk11_rom[8192]...
 
 using IOReader = std::function<byte(uint addr)>;
 using IOWriter = std::function<void(uint addr, byte data)>;
@@ -157,7 +161,7 @@ byte ram[128 * 1024];
 
 #define FIFO_NMI (0x04u << 24)
 #define FIFO_FLOPPY_COMMAND (0x05u << 24)
-#define FIFO_W_256 (0x06u << 24)  // finished 256 bytes of written data
+#define FIFO_W_256 (0x06u << 24) // finished 256 bytes of written data
 #define FIFO_FLOPPY_LATCH (0x07u << 24)
 
 uint trigger;
@@ -169,28 +173,34 @@ byte floppy_command;
 byte floppy_status;
 byte floppy_track;
 byte floppy_sector;
-byte* floppy_ptr;
+byte *floppy_ptr;
 
 byte floppy_buf[256];
 #define floppy_limit (256 + floppy_buf)
 
-#define volatile_sio_hw ((volatile sio_hw_t*)SIO_BASE)
+#define volatile_sio_hw ((volatile sio_hw_t *)SIO_BASE)
 
-FORCE_INLINE bool inline_volatile_gpio_get(uint pin) {
+FORCE_INLINE bool inline_volatile_gpio_get(uint pin)
+{
 #if NUM_BANK0_GPIOS <= 32
   return volatile_sio_hw->gpio_in & (1u << pin);
 #else
-  if (pin < 32) {
+  if (pin < 32)
+  {
     return volatile_sio_hw->gpio_in & (1u << pin);
-  } else {
+  }
+  else
+  {
     return volatile_sio_hw->gpio_hi_in & (1u << (pin - 32));
   }
 #endif
 }
 
-FORCE_INLINE void force_inline_multicore_fifo_push_blocking(uint32_t data) {
+FORCE_INLINE void force_inline_multicore_fifo_push_blocking(uint32_t data)
+{
   // We wait for the fifo to have some space
-  while (!multicore_fifo_wready()) tight_loop_contents();
+  while (!multicore_fifo_wready())
+    tight_loop_contents();
 
   sio_hw->fifo_wr = data;
 
@@ -198,75 +208,92 @@ FORCE_INLINE void force_inline_multicore_fifo_push_blocking(uint32_t data) {
   __sev();
 }
 
-void INPUT(int i) {
+void INPUT(int i)
+{
   gpio_init(i);
   gpio_set_dir(i, GPIO_IN);
   gpio_set_pulls(i, false, false);
 }
-void OUTPUT(int i, int x) {
+void OUTPUT(int i, int x)
+{
   gpio_init(i);
   gpio_set_dir(i, GPIO_OUT);
   gpio_put(i, x);
 }
 
-void HaltOn() {
+void HaltOn()
+{
   gpio_set_dir(G_HALT, GPIO_OUT);
   // gpio_put(G_HALT, false);
   SET_LED(1);
 }
-void HaltOff() {
+void HaltOff()
+{
   SET_LED(0);
   // sleep_us(100);
   // gpio_put(G_HALT, true);
   gpio_set_dir(G_HALT, GPIO_IN);
 }
 
-void Fatal(const char* s, int x) {
-  for (const char* p = "FATAL: "; *p; p++) {
+void Fatal(const char *s, int x)
+{
+  for (const char *p = "FATAL: "; *p; p++)
+  {
     putchar(C_PUTCHAR);
     putchar(*p);
   }
-  for (const char* p = s; *p; p++) {
+  for (const char *p = s; *p; p++)
+  {
     putchar(C_PUTCHAR);
     putchar(*p);
   }
   printf("\nFATAL(%d.): %s\n", x, s);
-  while (1) continue;
+  while (1)
+    continue;
 }
 
-void SendSectorData() {
-  for (uint i = 0; i < 256; i++) {
+void SendSectorData()
+{
+  for (uint i = 0; i < 256; i++)
+  {
     putchar_raw(floppy_buf[i]);
   }
 }
 
-void ReceiveSectorData() {
+void ReceiveSectorData()
+{
   char c = 0;
   int rc;
-  do {
+  do
+  {
     rc = stdio_usb_in_chars(&c, 1);
   } while (rc == PICO_ERROR_NO_DATA);
 
-  if (byte(c) != 0xAD) {
+  if (byte(c) != 0xAD)
+  {
     printf(" ReceiveSectorData: rc=%d. c=%d. \n", rc, c);
     Fatal("bad c", (byte)c);
   }
 
   int needed = 7;
-  char* p = (char*)floppy_buf;  // first write with unneeded header
-  while (needed > 0) {
+  char *p = (char *)floppy_buf; // first write with unneeded header
+  while (needed > 0)
+  {
     rc = stdio_usb_in_chars(p, needed);
-    if (rc == PICO_ERROR_NO_DATA) continue;
+    if (rc == PICO_ERROR_NO_DATA)
+      continue;
 
     p += rc;
     needed -= rc;
   }
 
   needed = 256;
-  p = (char*)floppy_buf;  // overwrite with good data
-  while (needed > 0) {
+  p = (char *)floppy_buf; // overwrite with good data
+  while (needed > 0)
+  {
     rc = stdio_usb_in_chars(p, needed);
-    if (rc == PICO_ERROR_NO_DATA) continue;
+    if (rc == PICO_ERROR_NO_DATA)
+      continue;
 
     p += rc;
     needed -= rc;
@@ -281,9 +308,13 @@ byte MmuMap[2][8];
 bool SamP1Bit;
 bool SamTyBit;
 
+// dragon support
+bool bDragonDetected = false;
+
 template <class T>
-class DontCoco64k {
- public:
+class DontCoco64k
+{
+public:
   static constexpr bool HasCoco64k() { return false; }
   static void InitCoco64k() {}
   static constexpr bool UseCoco64kRam(uint a) { return false; }
@@ -291,260 +322,339 @@ class DontCoco64k {
 };
 
 template <class T>
-class DoCoco64k {
- public:
-  static constexpr bool HasCoco64k() { return true; }
-  FORCE_INLINE static bool UseCoco64kRam(uint a) {
-    return (a < (SamTyBit ? 0xFF00 : 0x8000));
-  }
-  FORCE_INLINE static uint TranslateCoco64kRamAddress(uint a) {
-    return SamP1Bit ? (0x8000 ^ a) : a;
-  }
+class DragonDetection
+{
 
-  static void InitCoco64k() {
-    for (uint a = 0xFFD4; a < 0xFFE0; a++) {
-      Writers[255 & a] = WriteOtherSamBit;
+public:
+  FORCE_INLINE static bool detectRSTvec(uint a)
+  {
+    return (a == 0xFFFE || a == 0xFFFF);
+  }
+  bool compareRSTvec(uint a, byte d)
+  {
+    static bRVec1 == false;
+    static bRVec2 == false;
+
+    if (a == 0xFFFE)
+    {
+      bRVec1 = (d == 0xB4);
+    }
+    else if (a == 0xFFFF)
+    {
+      bRVec2 = (d == 0xB3);
     }
 
-    SamP1Bit = false;
-    SamTyBit = false;
-    Writers[0xD4] = WriteFFD4_P1Clear;
-    Writers[0xD5] = WriteFFD5_P1Set;
-    Writers[0xDE] = WriteFFDE_TyClear;
-    Writers[0xDF] = WriteFFDF_TySet;
+    if (bRVec1 && bRVec2)
+    {
+      bDragonDetected = true;
+      printf("Dragon detected via RST vector!\n");
+    }
+    return bDragonDetected;
   }
 
-  static void WriteOtherSamBit(uint a, byte d) {
-    bool odd = a & 1;
-    uint bitnum = (a - 0xFFC0) >> 1;
-    PUSH((odd ? 'A' : 'a') + bitnum);
-  }
+  template <class T>
+  class DoCoco64k
+  {
+  public:
+    static constexpr bool HasCoco64k() { return true; }
+    FORCE_INLINE static bool UseCoco64kRam(uint a)
+    {
+      return (a < (SamTyBit ? 0xFF00 : 0x8000));
+    }
+    FORCE_INLINE static uint TranslateCoco64kRamAddress(uint a)
+    {
+      return SamP1Bit ? (0x8000 ^ a) : a;
+    }
 
-  static void WriteFFD4_P1Clear(uint a, byte d) {
-    SamP1Bit = false;
-  }
-  static void WriteFFD5_P1Set(uint a, byte d) {
-    SamP1Bit = true;
-  }
-  static void WriteFFDE_TyClear(uint a, byte d) {
-    SamTyBit = false;
-  }
-  static void WriteFFDF_TySet(uint a, byte d) {
-    SamTyBit = true;
-  }
-};
+    static void InitCoco64k()
+    {
+      for (uint a = 0xFFD4; a < 0xFFE0; a++)
+      {
+        Writers[255 & a] = WriteOtherSamBit;
+      }
 
-template <class T>
-class DoCoco3Mmu {
- public:
-  static void InitCoco3Mmu() {
-    for (uint t = 0; t < 2; t++) {
-      for (uint i = 0; i < 8; i++) {
-        MmuMap[t][i] = 0x38 + i;
+      SamP1Bit = false;
+      SamTyBit = false;
+      Writers[0xD4] = WriteFFD4_P1Clear;
+      Writers[0xD5] = WriteFFD5_P1Set;
+      Writers[0xDE] = WriteFFDE_TyClear;
+      Writers[0xDF] = WriteFFDF_TySet;
+    }
+
+    static void WriteOtherSamBit(uint a, byte d)
+    {
+      bool odd = a & 1;
+      uint bitnum = (a - 0xFFC0) >> 1;
+      PUSH((odd ? 'A' : 'a') + bitnum);
+    }
+
+    static void WriteFFD4_P1Clear(uint a, byte d)
+    {
+      SamP1Bit = false;
+    }
+    static void WriteFFD5_P1Set(uint a, byte d)
+    {
+      SamP1Bit = true;
+    }
+    static void WriteFFDE_TyClear(uint a, byte d)
+    {
+      SamTyBit = false;
+    }
+    static void WriteFFDF_TySet(uint a, byte d)
+    {
+      SamTyBit = true;
+    }
+  };
+
+  template <class T>
+  class DoCoco3Mmu
+  {
+  public:
+    static void InitCoco3Mmu()
+    {
+      for (uint t = 0; t < 2; t++)
+      {
+        for (uint i = 0; i < 8; i++)
+        {
+          MmuMap[t][i] = 0x38 + i;
+        }
+      }
+
+      Writers[0x90] = T::WriteFF90;
+      Writers[0x91] = T::WriteFF91;
+
+      for (uint t = 0; t < 2; t++)
+      {
+        for (uint i = 0; i < 8; i++)
+        {
+          Writers[8 * t + i + 0xA0] = [=](uint a, byte d)
+          { MmuMap[t][i] = d; };
+          Readers[8 * t + i + 0xA0] = [=](uint a)
+          { return MmuMap[t][i]; };
+        }
       }
     }
 
-    Writers[0x90] = T::WriteFF90;
-    Writers[0x91] = T::WriteFF91;
+  private:
+    static void WriteFF90(uint a, byte d)
+    {
+      MmuEnabled = (1u << 6) & d;
+      StickyRamFFEx = (1u << 3) & d;
+    }
+    static void WriteFF91(uint a, byte d) { MmuTask = 1u & d; }
+  };
 
-    for (uint t = 0; t < 2; t++) {
-      for (uint i = 0; i < 8; i++) {
-        Writers[8 * t + i + 0xA0] = [=](uint a, byte d) { MmuMap[t][i] = d; };
-        Readers[8 * t + i + 0xA0] = [=](uint a) { return MmuMap[t][i]; };
+  template <class T>
+  class SmallRam
+  {
+    FORCE_INLINE static uint Phys(uint a)
+    {
+      a &= 0xFFFF;
+      if (T::UseCoco64kRam(a))
+      {
+        return T::TranslateCoco64kRamAddress(a);
+      }
+      else
+      {
+        return a;
       }
     }
-  }
 
- private:
-  static void WriteFF90(uint a, byte d) {
-    MmuEnabled = (1u << 6) & d;
-    StickyRamFFEx = (1u << 3) & d;
-  }
-  static void WriteFF91(uint a, byte d) { MmuTask = 1u & d; }
-};
+  public:
+    static constexpr bool HasBigRam() { return false; }
 
-template <class T>
-class SmallRam {
-  FORCE_INLINE static uint Phys(uint a) {
-    a &= 0xFFFF;
-    if (T::UseCoco64kRam(a)) {
-      return T::TranslateCoco64kRamAddress(a);
-    } else {
-      return a;
+    FORCE_INLINE static byte Peek(uint a)
+    {
+      uint p = Phys(a);
+      return ram[p];
     }
-  }
+    FORCE_INLINE static void Poke(uint a, byte d)
+    {
+      uint p = Phys(a);
+      ram[p] = d;
+    }
+  };
 
- public:
-  static constexpr bool HasBigRam() { return false; }
+  template <class T>
+  class BigRam
+  {
+    FORCE_INLINE static uint Phys(uint a)
+    {
+      if (!MmuEnabled)
+        return a;
+      if (a >= 0xFE00)
+        return a;
 
-  FORCE_INLINE static byte Peek(uint a) {
-    uint p = Phys(a);
-    return ram[p];
-  }
-  FORCE_INLINE static void Poke(uint a, byte d) {
-    uint p = Phys(a);
-    ram[p] = d;
-  }
-};
+      uint slot = 7 & (a >> 13);
+      uint offset = (a & 0x1FFF);
+      uint block = 15 & MmuMap[MmuTask][slot];
+      return (block << 13) + offset;
+    }
 
-template <class T>
-class BigRam {
-  FORCE_INLINE static uint Phys(uint a) {
-    if (!MmuEnabled) return a;
-    if (a >= 0xFE00) return a;
+  public:
+    static constexpr bool HasBigRam() { return true; }
 
-    uint slot = 7 & (a >> 13);
-    uint offset = (a & 0x1FFF);
-    uint block = 15 & MmuMap[MmuTask][slot];
-    return (block << 13) + offset;
-  }
+    FORCE_INLINE static byte Peek(uint a)
+    {
+      uint p = Phys(a);
+      return ram[p];
+    }
+    FORCE_INLINE static void Poke(uint a, byte d)
+    {
+      uint p = Phys(a);
+      ram[p] = d;
+    }
+  };
 
- public:
-  static constexpr bool HasBigRam() { return true; }
+  ////////////////////////////////////////////////////////
 
-  FORCE_INLINE static byte Peek(uint a) {
-    uint p = Phys(a);
-    return ram[p];
-  }
-  FORCE_INLINE static void Poke(uint a, byte d) {
-    uint p = Phys(a);
-    ram[p] = d;
-  }
-};
-
-////////////////////////////////////////////////////////
-
-//TODO// #define AUTO_TYPE "~~~PRINT MEM\n~~~"
+  // TODO// #define AUTO_TYPE "~~~PRINT MEM\n~~~"
 
 #ifdef AUTO_TYPE
-const char auto_type[] = AUTO_TYPE;
-uint auto_i;
-uint auto_skip = 100;
-uint auto_hold;
-byte auto_value;
+  const char auto_type[] = AUTO_TYPE;
+  uint auto_i;
+  uint auto_skip = 100;
+  uint auto_hold;
+  byte auto_value;
 
-const char normal_keyboard[] = "@ABCDEFGHIJKLMNOPQRSTUVWXYZ~~~~ 0123456789:;,-./\n";
-const char shift_keyboard[] = "@abcdefghijklmnopqrstuvwxyz~~~~ ~!\"#$%'()*+<=>?\n";
+  const char normal_keyboard[] = "@ABCDEFGHIJKLMNOPQRSTUVWXYZ~~~~ 0123456789:;,-./\n";
+  const char shift_keyboard[] = "@abcdefghijklmnopqrstuvwxyz~~~~ ~!\"#$%'()*+<=>?\n";
 
-constexpr int SHIFTED = 0x100;
+  constexpr int SHIFTED = 0x100;
 
-int find_keycode(char c) {
-    for (uint i = 0; normal_keyboard[i]; i++) {
-        if (normal_keyboard[i]==c) {
-            return i;
-        }
+  int find_keycode(char c)
+  {
+    for (uint i = 0; normal_keyboard[i]; i++)
+    {
+      if (normal_keyboard[i] == c)
+      {
+        return i;
+      }
     }
-    for (uint i = 0; shift_keyboard[i]; i++) {
-        if (shift_keyboard[i]==c) {
-            return i + SHIFTED;
-        }
+    for (uint i = 0; shift_keyboard[i]; i++)
+    {
+      if (shift_keyboard[i] == c)
+      {
+        return i + SHIFTED;
+      }
     }
     return -1;
-}
+  }
 
-byte keyboard_response(char c) {
+  byte keyboard_response(char c)
+  {
     int code = find_keycode(c);
-    if (code < 0) return 0xFF;
+    if (code < 0)
+      return 0xFF;
 
     byte col = code & 7;
-    byte row = (code>>3) & 7;
+    byte row = (code >> 3) & 7;
 
     byte probe = ram[0xFF02];
     byte z = 0xff;
-    if ((probe & (1u<<col)) == 0) {
-        z &= 0xFF ^ (1u << row);
+    if ((probe & (1u << col)) == 0)
+    {
+      z &= 0xFF ^ (1u << row);
     }
-    if (code & SHIFTED) {
-        if ((probe & 0x80) == 0) {
-            z &= 0xFF ^ (1u << 6);
-        }
+    if (code & SHIFTED)
+    {
+      if ((probe & 0x80) == 0)
+      {
+        z &= 0xFF ^ (1u << 6);
+      }
     }
-    PUSH('0' + (15 & (z>>4)));
-    PUSH('0' + (15 & (z>>0)));
+    PUSH('0' + (15 & (z >> 4)));
+    PUSH('0' + (15 & (z >> 0)));
     return z;
-}
-
+  }
 
 #endif
 
-////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////
 
-template <class T>
-class LegacyEngine {
- public:
-  static void InitializePins() {
-    for (uint i = 0; i <= 22; i++) {
-      gpio_init(i);
-      gpio_set_dir(i, GPIO_IN);
-      gpio_set_pulls(i, false, false);
-    }
-    OUTPUT(G_LED, 1);
+  template <class T>
+  class LegacyEngine
+  {
+  public:
+    static void InitializePins()
+    {
+      for (uint i = 0; i <= 22; i++)
+      {
+        gpio_init(i);
+        gpio_set_dir(i, GPIO_IN);
+        gpio_set_pulls(i, false, false);
+      }
+      OUTPUT(G_LED, 1);
 #if G_SND
-    INPUT(G_SND);
+      INPUT(G_SND);
 #endif
 #if G_CART
-    OUTPUT(G_CART, 1);
+      OUTPUT(G_CART, 1);
 #endif
 
 #if G_CTS
-    INPUT(G_CTS);
+      INPUT(G_CTS);
 #endif
 
 #if G_SCS
-    INPUT(G_SCS);
+      INPUT(G_SCS);
 #endif
 
-    // OUTPUT(G_SLENB, 0);
-    gpio_init(G_SLENB);
-    gpio_set_dir(G_SLENB, GPIO_OUT);
-    gpio_put(G_SLENB, 0);
-    gpio_set_dir(G_SLENB, GPIO_IN);
-    gpio_set_pulls(G_SLENB, false, false);
+      // OUTPUT(G_SLENB, 0);
+      gpio_init(G_SLENB);
+      gpio_set_dir(G_SLENB, GPIO_OUT);
+      gpio_put(G_SLENB, 0);
+      gpio_set_dir(G_SLENB, GPIO_IN);
+      gpio_set_pulls(G_SLENB, false, false);
 
-    // OUTPUT( G_HALT  , 0);
-    gpio_init(G_HALT);
-    gpio_set_dir(G_HALT, GPIO_OUT);
-    gpio_put(G_HALT, 0);
-    gpio_set_dir(G_HALT, GPIO_IN);
-    gpio_set_pulls(G_HALT, false, false);
+      // OUTPUT( G_HALT  , 0);
+      gpio_init(G_HALT);
+      gpio_set_dir(G_HALT, GPIO_OUT);
+      gpio_put(G_HALT, 0);
+      gpio_set_dir(G_HALT, GPIO_IN);
+      gpio_set_pulls(G_HALT, false, false);
 
-    // OUTPUT( G_NMI   , 0);
-    gpio_init(G_NMI);
-    gpio_set_dir(G_NMI, GPIO_OUT);
-    gpio_put(G_NMI, 0);
-    gpio_set_dir(G_NMI, GPIO_IN);
-    gpio_set_pulls(G_NMI, false, false);
+      // OUTPUT( G_NMI   , 0);
+      gpio_init(G_NMI);
+      gpio_set_dir(G_NMI, GPIO_OUT);
+      gpio_put(G_NMI, 0);
+      gpio_set_dir(G_NMI, GPIO_IN);
+      gpio_set_pulls(G_NMI, false, false);
 
 #if G_RESET
-    INPUT(G_RESET);
-    gpio_set_pulls(G_RESET, /*up=*/true, /*down=*/false);
+      INPUT(G_RESET);
+      gpio_set_pulls(G_RESET, /*up=*/true, /*down=*/false);
 #endif
 
-    for (uint i = 32; i <= 47; i++) {
-      gpio_init(i);
-      gpio_set_dir(i, GPIO_IN);
-      gpio_set_pulls(i, false, false);
+      for (uint i = 32; i <= 47; i++)
+      {
+        gpio_init(i);
+        gpio_set_dir(i, GPIO_IN);
+        gpio_set_pulls(i, false, false);
+      }
+      // LED off.
+      gpio_init(G_LED);
+      gpio_set_dir(G_LED, GPIO_OUT);
+      SET_LED(0);
     }
-    // LED off.
-    gpio_init(G_LED);
-    gpio_set_dir(G_LED, GPIO_OUT);
-    SET_LED(0);
-  }
 
-  static void background() {
-    while (1) {
-      bg_busy = false;
-      uint x = POP();
-      bg_busy = true;
-      HaltOn();
+    static void background()
+    {
+      while (1)
+      {
+        bg_busy = false;
+        uint x = POP();
+        bg_busy = true;
+        HaltOn();
 
-      switch (x >> 24) {
+        switch (x >> 24)
+        {
         case 0:
           putchar_raw(255 & x);
           break;
 
 #if FIFO_WRITE
-        case FIFO_WRITE >> 24:  // write cycle
+        case FIFO_WRITE >> 24: // write cycle
           putchar_raw(C_RAM2_WRITE);
           putchar_raw(x >> 16);
           putchar_raw(x >> 8);
@@ -553,7 +663,7 @@ class LegacyEngine {
 #endif
         case FIFO_NMI >> 24:
           gpio_set_dir(G_NMI, GPIO_OUT);
-          sleep_us(2);  // for more than a cycle
+          sleep_us(2); // for more than a cycle
           gpio_set_dir(G_NMI, GPIO_IN);
 
           putchar_raw(C_LOGGING);
@@ -564,51 +674,55 @@ class LegacyEngine {
           putchar_raw('\n');
           break;
 
-        case FIFO_FLOPPY_LATCH >> 24: {
+        case FIFO_FLOPPY_LATCH >> 24:
+        {
           static uint last_latch;
-          if (x != last_latch) {
+          if (x != last_latch)
+          {
             printf(" _%02x ", (x & 0xFF));
             last_latch = x;
           }
-        } break;
+        }
+        break;
 
         case FIFO_FLOPPY_COMMAND >> 24:
           printf(" f!%02x ", (x & 0xFF));
-          switch (x & 0xFF) {
-            case 0x17:  // seek track
-              floppy_track = floppy_buf[0];
-              break;
+          switch (x & 0xFF)
+          {
+          case 0x17: // seek track
+            floppy_track = floppy_buf[0];
+            break;
 
-            case 0x80:  // read sector
-              printf(" %dr%d", floppy_track, floppy_sector);
-              putchar_raw(C_DISK_READ);
-              putchar_raw(5 + 128);
-              putchar_raw('f');
-              putchar_raw(x);
-              putchar_raw(floppy_latch);
-              putchar_raw(floppy_track);
-              putchar_raw(floppy_sector);
+          case 0x80: // read sector
+            printf(" %dr%d", floppy_track, floppy_sector);
+            putchar_raw(C_DISK_READ);
+            putchar_raw(5 + 128);
+            putchar_raw('f');
+            putchar_raw(x);
+            putchar_raw(floppy_latch);
+            putchar_raw(floppy_track);
+            putchar_raw(floppy_sector);
 
-              ReceiveSectorData();
-              floppy_ptr = floppy_buf;
+            ReceiveSectorData();
+            floppy_ptr = floppy_buf;
 
-              printf(" ");
-              break;
+            printf(" ");
+            break;
 
-            case 0xA0:  // write sector
-              printf(" %dw%d", floppy_track, floppy_sector);
-              putchar_raw(C_DISK_WRITE);
-              putchar_raw(0xC4);
-              putchar_raw(5 + 128);
-              putchar_raw('f');
-              putchar_raw(x);
-              putchar_raw(floppy_latch);
-              putchar_raw(floppy_track);
-              putchar_raw(floppy_sector);
+          case 0xA0: // write sector
+            printf(" %dw%d", floppy_track, floppy_sector);
+            putchar_raw(C_DISK_WRITE);
+            putchar_raw(0xC4);
+            putchar_raw(5 + 128);
+            putchar_raw('f');
+            putchar_raw(x);
+            putchar_raw(floppy_latch);
+            putchar_raw(floppy_track);
+            putchar_raw(floppy_sector);
 
-              floppy_ptr = floppy_buf;
+            floppy_ptr = floppy_buf;
 
-              break;
+            break;
           }
           break;
         case FIFO_W_256 >> 24:
@@ -619,316 +733,372 @@ class LegacyEngine {
           break;
         default:
           printf("\nWUT? FIFO %x\n", x);
+        }
+        HaltOff();
       }
-      HaltOff();
     }
-  }
 
-#define STALL_WHILE(PIN, HL, IGNORED)             \
-  {                                               \
-    while (inline_volatile_gpio_get(PIN) == HL) { \
-      tight_loop_contents();                      \
-    }                                             \
+#define STALL_WHILE(PIN, HL, IGNORED)           \
+  {                                             \
+    while (inline_volatile_gpio_get(PIN) == HL) \
+    {                                           \
+      tight_loop_contents();                    \
+    }                                           \
   }
 
 #define SAY(C) PUSH((C) & 255)
 
-  static void foreground() {
-    // Disable interrupts in this "fast" core.
-    save_and_disable_interrupts();
+    static void foreground()
+    {
+      // Disable interrupts in this "fast" core.
+      save_and_disable_interrupts();
 
-    while (true) {
-      STALL_WHILE(G_E, CENTIPEDE_INVERT_EQ, 'v');
+      while (true)
+      {
+        STALL_WHILE(G_E, CENTIPEDE_INVERT_EQ, 'v');
 
-      const uint signals = volatile_sio_hw->gpio_in;
-      const bool reading = ((signals & (1u << G_RW)) != 0);
-      const uint abus = volatile_sio_hw->gpio_hi_in & 0xFFFF;
-      byte dbus = 0x00;
+        const uint signals = volatile_sio_hw->gpio_in;
+        const bool reading = ((signals & (1u << G_RW)) != 0);
+        const uint abus = volatile_sio_hw->gpio_hi_in & 0xFFFF;
+        byte dbus = 0x00;
 
-      constexpr uint NEG_CTS = (1 << G_CTS);
-      constexpr uint NEG_SCS = (1 << G_SCS);
-      constexpr uint NEG_SELECTS = NEG_CTS | NEG_SCS;
+        constexpr uint NEG_CTS = (1 << G_CTS);
+        constexpr uint NEG_SCS = (1 << G_SCS);
+        constexpr uint NEG_SELECTS = NEG_CTS | NEG_SCS;
 
-      if (LIKELY((signals & NEG_SELECTS) ==
-                 NEG_SELECTS)) {  // Not Special Select
+        if (LIKELY((signals & NEG_SELECTS) ==
+                   NEG_SELECTS))
+        { // Not Special Select
 
-        if (LIKELY(reading)) {
-          if (abus >= 0xFF00) {
-            IOReader r = Readers[abus & 0x00FF];
-            if (r) {
-              dbus = r(abus);
+          if (LIKELY(reading))
+          {
+            if (abus >= 0xFF00)
+            {
+              IOReader r = Readers[abus & 0x00FF];
+              if (r)
+              {
+                dbus = r(abus);
+                gpio_set_dir_out_masked(0xFF);
+                gpio_put_masked(0xFF, dbus);
+              }
+              else
+              {
+              }
+            }
+            else if (T::HasBigRam())
+            {
+              dbus = T::Peek(abus);
+
+              gpio_set_dir(G_SLENB, GPIO_OUT);
+
               gpio_set_dir_out_masked(0xFF);
               gpio_put_masked(0xFF, dbus);
-            } else {
             }
-          } else if (T::HasBigRam()) {
-            dbus = T::Peek(abus);
+            else if (T::UseCoco64kRam(abus))
+            {
+              dbus = T::Peek(abus);
 
-            gpio_set_dir(G_SLENB, GPIO_OUT);
+              gpio_set_dir(G_SLENB, GPIO_OUT);
+              busy_wait_at_least_cycles(12); // YAK
 
-            gpio_set_dir_out_masked(0xFF);
-            gpio_put_masked(0xFF, dbus);
-          } else if (T::UseCoco64kRam(abus)) {
-            dbus = T::Peek(abus);
-
-            gpio_set_dir(G_SLENB, GPIO_OUT);
-            busy_wait_at_least_cycles(12);  // YAK
-
-            gpio_set_dir_out_masked(0xFF);
-            gpio_put_masked(0xFF, dbus);
-
-          } else {
-            // don't get involved.  don't gpio_set_dir(G_SLENB, GPIO_OUT).
+              gpio_set_dir_out_masked(0xFF);
+              gpio_put_masked(0xFF, dbus);
+            }
+            else
+            {
+              // don't get involved.  don't gpio_set_dir(G_SLENB, GPIO_OUT).
 #if 0
                         // But read the data bus, in case it is useful.
                         STALL_WHILE(G_Q , not CENTIPEDE_INVERT_EQ, 'k');
                         dbus = (byte)sio_hw->gpio_in;  // late grab of data
 #endif
-          }
+            }
 
-          STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 'r');
+            STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 'r');
 #if DBUS_HOLD_CYCLES
-          busy_wait_at_least_cycles(DBUS_HOLD_CYCLES);
+            busy_wait_at_least_cycles(DBUS_HOLD_CYCLES);
 #endif
-          gpio_set_dir_in_masked(0xFF);
-          gpio_set_dir(G_SLENB, GPIO_IN);
+            gpio_set_dir_in_masked(0xFF);
+            gpio_set_dir(G_SLENB, GPIO_IN);
 
-          // END NORMAL READING
-        } else {
-          // NORMAL CPU WRITING -- we RX
-          STALL_WHILE(G_Q, not CENTIPEDE_INVERT_EQ, 'p');
-          dbus = (byte)sio_hw->gpio_in;  // late grab of data
-          if (T::HasBigRam()) {
-            T::Poke(abus, dbus);
-          } else if (T::UseCoco64kRam(abus)) {
-            T::Poke(abus, dbus);
-          } else {
-            ram[abus] = dbus;
+            // END NORMAL READING
           }
+          else
+          {
+            // NORMAL CPU WRITING -- we RX
+            STALL_WHILE(G_Q, not CENTIPEDE_INVERT_EQ, 'p');
+            dbus = (byte)sio_hw->gpio_in; // late grab of data
+            if (T::HasBigRam())
+            {
+              T::Poke(abus, dbus);
+            }
+            else if (T::UseCoco64kRam(abus))
+            {
+              T::Poke(abus, dbus);
+            }
+            else
+            {
+              ram[abus] = dbus;
+            }
 
-          IOWriter w = 0;
-          if (abus >= 0xFF00) {
-            w = Writers[abus & 0x00FF];
-            if (w) w(abus, dbus);
-          }
+            IOWriter w = 0;
+            if (abus >= 0xFF00)
+            {
+              w = Writers[abus & 0x00FF];
+              if (w)
+                w(abus, dbus);
+            }
 
 #if FIFO_WRITE
-          PUSH(FIFO_WRITE | (abus<<8) | dbus);
+            PUSH(FIFO_WRITE | (abus << 8) | dbus);
 #endif
-          STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 'q');
+            STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 'q');
 
-          // END NORMAL WRITING
-        }  // end if (writing) else
+            // END NORMAL WRITING
+          } // end if (writing) else
+        }
+        else
+        { // Is Special Select
+          if (LIKELY(reading))
+          { // Special CPU READING -- we TX
+            dbus;
 
-      } else {                  // Is Special Select
-        if (LIKELY(reading)) {  // Special CPU READING -- we TX
-          dbus;
-
-          if (LIKELY((signals & NEG_CTS) == 0)) {  // READ CTS
-            dbus = disk11_rom[abus & 0x1FFF];
-
-          } else {  // READ SCS
-            dbus = ram[abus];
-            switch (abus & 15) {
-              case 0x8:  // ReadStatus
+            if (LIKELY((signals & NEG_CTS) == 0))
+            { // READ CTS
+              dbus = disk11_rom[abus & 0x1FFF];
+            }
+            else
+            { // READ SCS
+              dbus = ram[abus];
+              switch (abus & 15)
+              {
+              case 0x8: // ReadStatus
                 dbus = floppy_status;
-                floppy_status &= 1;  // Clear all except BUSY.
+                floppy_status &= 1; // Clear all except BUSY.
                 break;
-              case 0xB:  // ReadData
+              case 0xB: // ReadData
                 dbus = *floppy_ptr++;
-                if ((floppy_latch & 0x80) != 0 && floppy_ptr >= floppy_limit) {
+                if ((floppy_latch & 0x80) != 0 && floppy_ptr >= floppy_limit)
+                {
                   floppy_ptr = floppy_buf;
                   PUSH(FIFO_NMI);
                 }
                 break;
               default:
                 break;
+              }
             }
-          }
 
-          gpio_set_dir_out_masked(0xFF);
-          gpio_put_masked(0xFF, dbus);
-          STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 's');
+            gpio_set_dir_out_masked(0xFF);
+            gpio_put_masked(0xFF, dbus);
+            STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 's');
 #if DBUS_HOLD_CYCLES
-          busy_wait_at_least_cycles(DBUS_HOLD_CYCLES);
+            busy_wait_at_least_cycles(DBUS_HOLD_CYCLES);
 #endif
-          gpio_set_dir_in_masked(0xFF);
-        } else {  // Special CPU WRITING -- we RX
-          STALL_WHILE(G_Q, not CENTIPEDE_INVERT_EQ, 'p');
-          dbus = (byte)sio_hw->gpio_in;  // grab dbus after q drops
-          ram[abus] = dbus;
+            gpio_set_dir_in_masked(0xFF);
+          }
+          else
+          { // Special CPU WRITING -- we RX
+            STALL_WHILE(G_Q, not CENTIPEDE_INVERT_EQ, 'p');
+            dbus = (byte)sio_hw->gpio_in; // grab dbus after q drops
+            ram[abus] = dbus;
 
-          if (LIKELY((signals & NEG_SCS) == 0)) {
-            // WRITE SCS
-            switch (abus & 15) {
-              case 0x0:  // WriteLatch
+            if (LIKELY((signals & NEG_SCS) == 0))
+            {
+              // WRITE SCS
+              switch (abus & 15)
+              {
+              case 0x0: // WriteLatch
                 floppy_latch = dbus;
                 PUSH(FIFO_FLOPPY_LATCH | dbus);
                 break;
-              case 0x8:  // WriteCommand
+              case 0x8: // WriteCommand
                 floppy_status =
                     ((dbus & 0xF0) == 0x80) || ((dbus & 0xF0) == 0xA0)
                         ? 0x02
-                        : 0x00;  // YAK
+                        : 0x00; // YAK
 
-                floppy_ptr = floppy_buf;  // Reset pointer.
+                floppy_ptr = floppy_buf; // Reset pointer.
                 if (dbus == 0x17)
-                  floppy_track = floppy_buf[0];  // was losing critical race
+                  floppy_track = floppy_buf[0]; // was losing critical race
 
                 PUSH(FIFO_FLOPPY_COMMAND | dbus);
                 break;
-              case 0x9:  // WriteTrack
+              case 0x9: // WriteTrack
                 floppy_track = dbus;
                 break;
-              case 0xA:  // WriteSector
+              case 0xA: // WriteSector
                 floppy_sector = dbus;
                 break;
-              case 0xB:  // WriteData
+              case 0xB: // WriteData
                 *floppy_ptr++ = dbus;
-                if ((floppy_latch & 0x80) != 0 && floppy_ptr >= floppy_limit) {
+                if ((floppy_latch & 0x80) != 0 && floppy_ptr >= floppy_limit)
+                {
                   PUSH(FIFO_W_256);
                   PUSH(FIFO_NMI);
                 }
                 break;
               default:
                 break;
-            }
-          }  // end write SCS
+              }
+            } // end write SCS
 
-          STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 's');
+            STALL_WHILE(G_E, not CENTIPEDE_INVERT_EQ, 's');
 
-        }  // end read or write
-      }  // end if special
-    }  // end while true
-  }  // end foreground()
+          } // end read or write
+        } // end if special
+      } // end while true
+    } // end foreground()
 
-  static void RunLegacy() {
-    // foreground must be fast.
-    multicore_launch_core1(foreground);
+    static void RunLegacy()
+    {
+      // foreground must be fast.
+      multicore_launch_core1(foreground);
 
-    // background on core 0 handles interrupts.
-    background();
-  }
-};  // end LegacyEngine
+      // background on core 0 handles interrupts.
+      background();
+    }
+  }; // end LegacyEngine
 
-class Engine0 :
-    // public DoCoco3Mmu<Engine0>,
-    public SmallRam<Engine0>,
-    public DoCoco64k<Engine0>,
-    public LegacyEngine<Engine0> {
- public:
-  static void Run() {
-    // T::InitCoco3Mmu();
-    InitCoco64k();
-    RunLegacy();
-  }
-};
+  class Engine0 :
+      // public DoCoco3Mmu<Engine0>,
+      public SmallRam<Engine0>,
+      public DoCoco64k<Engine0>,
+      public LegacyEngine<Engine0>
+  {
+  public:
+    static void Run()
+    {
+      // T::InitCoco3Mmu();
+      InitCoco64k();
+      RunLegacy();
+    }
+  };
 
 #define METADATA_MAX_LEN 256
 #define METADATA_ADDR (const uint8_t *)(0x10FFF000)
 
-// +2 guarantees space for the EOF double-NUL even if the string is 256 bytes
-char Label[METADATA_MAX_LEN + 2];
+  // +2 guarantees space for the EOF double-NUL even if the string is 256 bytes
+  char Label[METADATA_MAX_LEN + 2];
 
-void InitLabel() {
-    for (uint32_t i = 0; i < METADATA_MAX_LEN; i++) {
-        uint8_t b = *(METADATA_ADDR + i);
+  void InitLabel()
+  {
+    for (uint32_t i = 0; i < METADATA_MAX_LEN; i++)
+    {
+      uint8_t b = *(METADATA_ADDR + i);
 
-        // Treat 0xFF (erased flash) the same as 0x00 (EOF)
-        if (b == 0x00 || b == 0xFF) {
-            Label[i] = '\0';
-            Label[i+1] = '\0';
-            return;
-        }
+      // Treat 0xFF (erased flash) the same as 0x00 (EOF)
+      if (b == 0x00 || b == 0xFF)
+      {
+        Label[i] = '\0';
+        Label[i + 1] = '\0';
+        return;
+      }
 
-        if (b == '=' || b == ',') {
-            Label[i] = '\0';
-        } else {
-            Label[i] = (char)b;
-        }
+      if (b == '=' || b == ',')
+      {
+        Label[i] = '\0';
+      }
+      else
+      {
+        Label[i] = (char)b;
+      }
     }
 
     // Safety net: If the string was exactly 256 bytes without a NUL/0xFF,
     // force the double-NUL at the end.
     Label[METADATA_MAX_LEN] = '\0';
     Label[METADATA_MAX_LEN + 1] = '\0';
-}
+  }
 
-void PrintLabel() {
+  void PrintLabel()
+  {
     // CRITICAL: If you print over USB, wait for the terminal to connect!
     // (If you print over UART, you can remove this while-loop)
-    while (!stdio_usb_connected()) {
-        sleep_ms(10);
+    while (!stdio_usb_connected())
+    {
+      sleep_ms(10);
     }
 
-    if (Label[0]=='p' && Label[1]=='\0' && Label[2]=='1' && Label[3]=='\0') {
-        const char* p = Label;
+    if (Label[0] == 'p' && Label[1] == '\0' && Label[2] == '1' && Label[3] == '\0')
+    {
+      const char *p = Label;
 
-        while (*p) {
-            const char* q = p + strlen(p) + 1;
+      while (*p)
+      {
+        const char *q = p + strlen(p) + 1;
 
-            // Print the key and value
-            printf("[%s=%s]\n", p, q);
+        // Print the key and value
+        printf("[%s=%s]\n", p, q);
 
-            // Advance p to the next key
-            p = q + strlen(q) + 1;
-        }
-    } else {
-        printf("Label did not start with p=1\n");
-        printf("Memory dump at 0x10FFF000: ");
-        for(int i=0; i<16; i++) {
-            printf("%02X ", Label[i]);
-        }
-        printf("\n");
+        // Advance p to the next key
+        p = q + strlen(q) + 1;
+      }
     }
-}
+    else
+    {
+      printf("Label did not start with p=1\n");
+      printf("Memory dump at 0x10FFF000: ");
+      for (int i = 0; i < 16; i++)
+      {
+        printf("%02X ", Label[i]);
+      }
+      printf("\n");
+    }
+  }
 
-const char* GetLabel(const char* key) {
+  const char *GetLabel(const char *key)
+  {
     // Guard against null pointers or empty search keys
-    if (!key || key[0] == '\0') {
-        return nullptr;
+    if (!key || key[0] == '\0')
+    {
+      return nullptr;
     }
 
-    const char* p = Label;
+    const char *p = Label;
 
-    // Iterate through the array. 
+    // Iterate through the array.
     // The loop breaks when p points to the final empty key (the double NUL).
-    while (*p != '\0') {
-        const char* current_key = p;
-        
-        // The value starts immediately after the current key's NUL terminator
-        const char* current_value = current_key + strlen(current_key) + 1;
+    while (*p != '\0')
+    {
+      const char *current_key = p;
 
-        // Check if we found a match
-        if (strcmp(current_key, key) == 0) {
-            return current_value;
-        }
+      // The value starts immediately after the current key's NUL terminator
+      const char *current_value = current_key + strlen(current_key) + 1;
 
-        // Advance 'p' to the start of the next key.
-        // This is immediately after the current value's NUL terminator.
-        p = current_value + strlen(current_value) + 1;
+      // Check if we found a match
+      if (strcmp(current_key, key) == 0)
+      {
+        return current_value;
+      }
+
+      // Advance 'p' to the start of the next key.
+      // This is immediately after the current value's NUL terminator.
+      p = current_value + strlen(current_value) + 1;
     }
 
     // Key was not found in the array
     return nullptr;
-}
-
-int main() {
-  Engine0::InitializePins();
-  InitLabel();
-#if MHz != 150
-  set_sys_clock_khz(MHz * 1000, true);
-#endif
-  stdio_usb_init();
-
-  for (uint i = 0; i < 6; i++) {
-    SET_LED(1);
-    sleep_ms(200);
-
-    SET_LED(0);
-    sleep_ms(200);
   }
-  PrintLabel();
 
-  Engine0::Run();
-}
+  int main()
+  {
+    Engine0::InitializePins();
+    InitLabel();
+#if MHz != 150
+    set_sys_clock_khz(MHz * 1000, true);
+#endif
+    stdio_usb_init();
+
+    for (uint i = 0; i < 6; i++)
+    {
+      SET_LED(1);
+      sleep_ms(200);
+
+      SET_LED(0);
+      sleep_ms(200);
+    }
+    PrintLabel();
+
+    Engine0::Run();
+  }
